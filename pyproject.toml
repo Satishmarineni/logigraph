@@ -1,0 +1,29 @@
+[project]
+name = "logigraph"
+version = "0.1.0"
+description = "Ontology-powered GraphRAG over logistics documents"
+readme = "README.md"
+authors = [
+    { name = "Satish", email = "satishkumartec@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "faiss-cpu>=1.16.0",
+    "faker>=40.54.0",
+    "neo4j>=6.4.1",
+    "numpy>=2.5.4",
+    "openai>=3.49.0",
+    "pandas>=3.1.1",
+    "pdfplumber>=0.11.10",
+    "pymupdf>=2.1",
+    "python-dotenv>=1.2.4",
+    "streamlit>=1.67.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.9,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "logigraph"
+module-root = "src"
