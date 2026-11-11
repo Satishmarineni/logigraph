@@ -32,11 +32,10 @@ MIN_TEXT_SCORE = 0.40      # below this, a text passage is treated as not releva
 CITATION = re.compile(r"\[([ET]\d+)\]")
 
 ANSWER_PROMPT = """You answer questions about logistics shipments using ONLY the evidence given.
-Evidence items are labelled E0, E1, E2, ... (facts from the knowledge graph; E0 is the total
-count when several records match) and T1, T2, ... (passages from documents). Rules:
+Evidence items are labelled E1, E2, ... (facts from the knowledge graph) and T1, T2, ...
+(passages from documents). Rules:
 - After every factual claim, cite the evidence it came from, like [E1] or [T2].
-- Use the exact numbers in the evidence. For "how many" questions, the total is E0
-  (total_matching_records); cite it as [E0], never as one record's row.
+- Use the exact numbers in the evidence.
 - When you describe a document passage, stay close to its wording. Do not add examples,
   causes or conditions that the passage does not state.
 - If the evidence does not answer the question, reply with exactly: NOT_FOUND
@@ -82,6 +81,9 @@ class Answerer:
 
     def write(self, question, graph, evidence):
         lines = []
+        if any(item["id"] == "E0" for item in evidence):   # only hybrid/graph answers have a total
+            lines.append("E0 is the total number of matching records. For 'how many' questions, "
+                         "cite the total as [E0], never as one record's row.")
         if graph is not None and graph["row_count"] > MAX_GRAPH_ROWS:
             lines.append(f"Only the first {MAX_GRAPH_ROWS} of {graph['row_count']} records are listed below.")
         for item in evidence:
