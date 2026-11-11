@@ -3,7 +3,8 @@
 Flow for one question:
   1. Plan it (6.1): intent, route (graph / vector / hybrid), filters.
   2. Retrieve: graph rows from Neo4j (6.2) and/or text passages from FAISS (5.3).
-  3. Number every piece of evidence: graph rows E1, E2, ... and text passages T1, T2, ...
+  3. Number every piece of evidence: the total count E0 (when several records match),
+     graph rows E1, E2, ... and text passages T1, T2, ...
   4. The LLM writes the answer ONLY from that evidence and cites [E1] / [T2] after each claim.
   5. Checks in code:
        - counts come from the graph result, not from the LLM
@@ -31,10 +32,11 @@ MIN_TEXT_SCORE = 0.40      # below this, a text passage is treated as not releva
 CITATION = re.compile(r"\[([ET]\d+)\]")
 
 ANSWER_PROMPT = """You answer questions about logistics shipments using ONLY the evidence given.
-Evidence items are labelled E1, E2, ... (facts from the knowledge graph) and T1, T2, ...
-(passages from documents). Rules:
+Evidence items are labelled E0, E1, E2, ... (facts from the knowledge graph; E0 is the total
+count when several records match) and T1, T2, ... (passages from documents). Rules:
 - After every factual claim, cite the evidence it came from, like [E1] or [T2].
-- Use the exact numbers in the evidence. If a total count is given, use it as stated.
+- Use the exact numbers in the evidence. For "how many" questions, the total is E0
+  (total_matching_records); cite it as [E0], never as one record's row.
 - When you describe a document passage, stay close to its wording. Do not add examples,
   causes or conditions that the passage does not state.
 - If the evidence does not answer the question, reply with exactly: NOT_FOUND
@@ -63,6 +65,11 @@ class Answerer:
                 docs = row.get("doc_ids") or ["knowledge graph aggregate (see Cypher)"]
                 facts = {k: v for k, v in row.items() if k != "doc_ids" and v not in (None, [], "")}
                 evidence.append({"id": f"E{i}", "kind": "graph", "content": facts, "sources": docs})
+            if graph["row_count"] > 1:
+                # The total is a fact of its own: cite it as [E0], not as one shipment's row.
+                evidence.insert(0, {"id": "E0", "kind": "graph",
+                                    "content": {"total_matching_records": graph["row_count"]},
+                                    "sources": [f"knowledge graph count of {graph['row_count']} records (see Cypher)"]})
 
         if plan["route"] in ("vector", "hybrid") and plan.get("text_query"):
             hits = [h for h in search(self.llm, self.index, self.chunks, plan["text_query"], k=TEXT_HITS)
@@ -75,10 +82,8 @@ class Answerer:
 
     def write(self, question, graph, evidence):
         lines = []
-        if graph is not None:
-            shown = min(graph["row_count"], MAX_GRAPH_ROWS)
-            lines.append(f"Total matching rows in the knowledge graph: {graph['row_count']}"
-                         + (f" (first {shown} shown)" if graph["row_count"] > shown else ""))
+        if graph is not None and graph["row_count"] > MAX_GRAPH_ROWS:
+            lines.append(f"Only the first {MAX_GRAPH_ROWS} of {graph['row_count']} records are listed below.")
         for item in evidence:
             content = item["content"] if isinstance(item["content"], str) else json.dumps(item["content"], default=str)
             lines.append(f"[{item['id']}] {content}")

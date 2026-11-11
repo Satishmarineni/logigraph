@@ -1,0 +1,15 @@
+services:
+  neo4j:
+    image: neo4j:5.26
+    container_name: logigraph-neo4j
+    ports:
+      - "127.0.0.1:7474:7474"   # browser UI
+      - "127.0.0.1:7687:7687"   # bolt (Python driver)
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD}
+      NEO4J_server_memory_heap_max__size: 1G
+    volumes:
+      - neo4j_data:/data
+
+volumes:
+  neo4j_data:
