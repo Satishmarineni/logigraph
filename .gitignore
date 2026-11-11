@@ -1,10 +1,21 @@
-# Python-generated files
+# Python / uv
 __pycache__/
 *.py[oc]
 build/
 dist/
 wheels/
 *.egg-info
-
-# Virtual environments
 .venv
+
+# Secrets - never commit
+.env
+
+# Data: CEVA templates, generated documents, outputs, indexes, downloads
+data/raw/
+data/processed/
+data/index/
+data/external/
+data/templates/
+
+# Inspection images from scripts
+*.png
