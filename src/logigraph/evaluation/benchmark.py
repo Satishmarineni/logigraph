@@ -9,9 +9,10 @@ Both use the SAME answer prompt, LLM, citation gate and "not found" rule, so the
 only difference is how the evidence is retrieved.
 
 Scoring (done in code, no LLM judge):
-  - set      : HAWB numbers in the answer must equal the gold list exactly
-               (precision and recall are also reported)
-  - number   : the first number in the answer (after removing HAWB IDs,
+  - set      : shipments named in the answer must equal the gold list exactly
+               (a shipment ID or SLI quote counts as its HAWB; precision and
+               recall are also reported)
+  - number   : the first number in the answer (after removing shipment IDs,
                citations and dates) must equal the gold value
   - text     : every required phrase (or one of its alternatives) must appear
   - refusal  : the answer must be the "not found" reply
@@ -33,6 +34,14 @@ SYSTEMS = ("vector", "hybrid")
 HAWB = re.compile(r"\bSYN\d{8}\b")
 DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 NUMBER = re.compile(r"\d+(?:\.\d+)?")
+OTHER_ID = re.compile(r"\b(?:Q-)?SYN-\d{6}\b")         # shipment IDs and SLI quote numbers
+
+# An answer may name a shipment by its shipment ID or SLI quote instead of the HAWB;
+# both point to the same shipment, so they count as that HAWB.
+ID_TO_HAWB = {}
+for _s in load_shipments():
+    ID_TO_HAWB[_s["shipment_id"]] = _s["hawb_number"]
+    ID_TO_HAWB[_s["sli_quote_number"]] = _s["hawb_number"]
 
 
 # ---------------------------------------------------------------------------
@@ -43,7 +52,7 @@ def is_refusal(answer):
 
 
 def first_number(answer):
-    text = CITATION.sub(" ", HAWB.sub(" ", DATE.sub(" ", answer)))
+    text = CITATION.sub(" ", HAWB.sub(" ", OTHER_ID.sub(" ", DATE.sub(" ", answer))))
     text = re.sub(r"(?<=\d),(?=\d{3})", "", text)            # 4,068 -> 4068
     match = NUMBER.search(text)
     return float(match.group()) if match else None
@@ -67,7 +76,8 @@ def score(item, result):
         return out
 
     if kind in ("set", "set+text"):
-        found, expected = set(HAWB.findall(answer)), set(gold)
+        found = set(HAWB.findall(answer)) | {ID_TO_HAWB[i] for i in OTHER_ID.findall(answer) if i in ID_TO_HAWB}
+        expected = set(gold)
         hit = len(found & expected)
         out["precision"] = round(hit / len(found), 2) if found else 0.0
         out["recall"] = round(hit / len(expected), 2) if expected else 1.0
