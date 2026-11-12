@@ -1,4 +1,4 @@
-# LogiGraph: Logistics Knowledge Graph with Cited Answers
+# Ontology-powered GraphRAG over logistics documents with cited answer
 
 Ask plain-English questions about shipments and get answers with a citation after every claim, built from a **knowledge graph (Neo4j)** and **vector search (FAISS)** over logistics documents: House Air Waybills (HAWB), Shipper's Letters of Instruction (SLI), **ANSI X12 214** status messages, and carrier status reports.
 
